@@ -1,0 +1,9 @@
+● Дописываю отчёт…
+  ⎿  Wrote 120 lines to report_T2xx_example.md
+
+You've hit your session limit. Your limit will reset at 4:30pm.
+
+────────────────────────────────────────────────────────────────────────
+❯
+────────────────────────────────────────────────────────────────────────
+  ⏵⏵ bypass permissions on (shift+tab to cycle)

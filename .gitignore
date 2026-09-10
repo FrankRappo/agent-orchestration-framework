@@ -1,0 +1,20 @@
+# --- рантайм-состояние: пишется живыми демонами, в публикацию не идёт ---
+*.log
+claude/ram_guard_protect_pids
+claude/ram_guard_v3.conf.local
+
+# --- бэкапы и архивы ---
+.backups/
+_backup_*/
+*.bak
+*.bak_*
+*.tar.gz
+*.zip
+
+# --- ключи и локальные секреты ---
+*.pem
+*.key
+id_rsa*
+.env
+.env.*
+secrets*

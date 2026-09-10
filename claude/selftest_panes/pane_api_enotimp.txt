@@ -1,0 +1,12 @@
+● Read(src/epf/ПотребностьВТоварах/Forms/Форма/Ext/Form/Module.bsl)
+  ⎿  Read 240 lines (ctrl+r to expand)
+
+● Bash(srv_ps259.sh 't259_calc.ps1 -Artikul 40952 -Period 3')
+  ⎿  Waiting…
+
+API Error: Unable to connect to API (ENOTIMP)
+
+────────────────────────────────────────────────────────────────────────
+❯
+────────────────────────────────────────────────────────────────────────
+  ⏵⏵ bypass permissions on (shift+tab to cycle)

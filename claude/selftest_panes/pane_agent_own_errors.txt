@@ -1,0 +1,15 @@
+● Bash(curl -s http://torg11_che/projecta/hs/projecta/v1/products | head -3)
+  ⎿  fetch failed
+     Internal server error
+     ssh: connection error — туннель 2246 лежит, поднимаю заново
+
+● Разбираю: в логе моста три ошибки подряд, error встречается и в snapshot.json.
+  ⎿  grep -c error /work/projecta/logs/bridge.log  →  17
+
+● Bash(bash /work/remote_tools/projecta_ssh.sh 'Get-Service KSOTunnel')
+  ⎿  Waiting…
+
+────────────────────────────────────────────────────────────────────────
+❯
+────────────────────────────────────────────────────────────────────────
+  ⏵⏵ bypass permissions on (shift+tab to cycle) · esc to interrupt
