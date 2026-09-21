@@ -18,3 +18,7 @@ id_rsa*
 .env
 .env.*
 secrets*
+
+# --- Python validation artifacts ---
+__pycache__/
+*.py[cod]
