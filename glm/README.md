@@ -83,7 +83,7 @@ Supported headers:
 
 ```text
 Complexity: low | medium | high | critical
-Model: auto | GLM-5.3 | GLM-5.3-Flash
+Model: auto | GLM-5.3 | GLM-5.3-Flash | GLM-5.2 | GLM-5-Turbo
 Mode: build | edit | plan | yolo
 Resource-Lock: none | <name>
 No-Respawn: true | false
@@ -108,6 +108,9 @@ Default policy:
 Critical work still requires independent review by the owning Codex session or
 another explicitly chosen reviewer. Model price alone is not a verification
 strategy.
+
+`GLM-5.2` and `GLM-5-Turbo` are accepted as explicit per-task overrides. Auto
+routing intentionally stays on the currently verified 5.3 family.
 
 ## Runtime status
 
