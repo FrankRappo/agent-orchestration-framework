@@ -13,7 +13,7 @@ SPEC.loader.exec_module(quota)
 
 class QuotaMonitorTests(unittest.TestCase):
     def test_zcode_buckets_and_admission(self):
-        buckets, plans = quota.parse_zcode([HERE / "fixtures" / "zcode.log"])
+        buckets, plans = quota.parse_zcode([HERE / "fixtures" / "zcode.txt"])
         self.assertEqual("Test Plan", plans[0]["name"])
         by_name = {item["name"]: item for item in buckets}
         self.assertEqual(20.0, by_name["GLM-5.3"]["used_percent"])
