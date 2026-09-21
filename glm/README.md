@@ -27,6 +27,16 @@ bash /work/settings/common/orchestrate.template.sh limits
 bash /work/settings/common/orchestrate.template.sh usage --project /work/myproject
 ```
 
+The same commands can be entered from Windows through WSL:
+
+```powershell
+wsl.exe -d Ubuntu-24.04 -u agentuser -- orchestrate limits
+wsl.exe -d Ubuntu-24.04 -u agentuser -- orchestrate usage --project /work/myproject
+```
+
+Always pass Linux paths (`/work/...`), not `\\wsl.localhost\...`, to the
+orchestrator.
+
 If the live doctor asks for authentication, complete the standalone CLI OAuth
 once. Desktop login and CLI login can be separate:
 

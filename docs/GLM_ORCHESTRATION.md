@@ -58,6 +58,34 @@ require a permission client; the launcher maps them to `yolo` unless
 that actually owns the lock. Reports, not process exit codes, are the terminal
 task contract.
 
+## Launch from WSL or Windows
+
+The framework itself is Linux/Bash software. Inside WSL, call it directly:
+
+```bash
+orchestrate limits
+orchestrate usage --project /work/myproject
+orchestrate start --project /work/myproject --controller glm \
+  --goal /work/myproject/GOAL.md
+```
+
+From Windows PowerShell or Windows Terminal, use the WSL bridge and Linux paths:
+
+```powershell
+wsl.exe -d Ubuntu-24.04 -u agentuser -- orchestrate limits
+
+wsl.exe -d Ubuntu-24.04 -u agentuser -- orchestrate start `
+  --project /work/myproject `
+  --controller glm `
+  --goal /work/myproject/GOAL.md
+```
+
+Launching this way does not turn the worker into a Windows process: the
+orchestrator, tmux, tools, and `glm` remain native WSL processes and use the WSL
+network route. `glm-win` may be kept as a diagnostic fallback, but it is not the
+recommended coding backend because Windows processes have UNC and Linux-tooling
+limitations.
+
 ## Controller semantics
 
 Only one controller owns a project queue at a time:
