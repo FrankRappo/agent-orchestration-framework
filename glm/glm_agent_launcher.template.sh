@@ -11,6 +11,10 @@ STATE_DIR="${STATE_DIR:?need STATE_DIR}"
 PROVIDER_ID="${PROVIDER_ID:?need PROVIDER_ID}"
 MODEL_ID="${MODEL_ID:?need MODEL_ID}"
 MODE="${MODE:-build}"
+EFFECTIVE_MODE="$MODE"
+if [[ "${GLM_HEADLESS_AUTO_APPROVE:-1}" == 1 && "$MODE" =~ ^(build|edit)$ ]]; then
+  EFFECTIVE_MODE=yolo
+fi
 CONTROLLER="${CONTROLLER:-manual}"
 GLM_BIN="${GLM_BIN:-glm}"
 GLM_PATH_STYLE="${GLM_PATH_STYLE:-native}"
@@ -76,13 +80,13 @@ esac
 export GLM_TASK_ID="$TASK" GLM_TASK_REPORT="$REPORT" GLM_TASK_MODEL="$MODEL_ID"
 export GLM_TASK_PROJECT="$PROJECT_DIR" GLM_TASK_FILE="$TASK_FILE"
 prompt="$(cat "$PROMPT_FILE")"
-args=(--cwd "$PROJECT_DIR" --mode "$MODE" --surface terminal --no-color --json)
+args=(--cwd "$PROJECT_DIR" --mode "$EFFECTIVE_MODE" --surface terminal --no-color --json)
 if [[ -n "$GLM_DISALLOWED_TOOLS" ]]; then
   args+=(--disallowed-tools "$GLM_DISALLOWED_TOOLS")
 fi
 
 {
-  printf '[%s] launch task=%s controller=%s provider=%s model=%s mode=%s\n' \
-    "$(date '+%F %T')" "$TASK" "$CONTROLLER" "$PROVIDER_ID" "$MODEL_ID" "$MODE"
+  printf '[%s] launch task=%s controller=%s provider=%s model=%s requested_mode=%s effective_mode=%s\n' \
+    "$(date '+%F %T')" "$TASK" "$CONTROLLER" "$PROVIDER_ID" "$MODEL_ID" "$MODE" "$EFFECTIVE_MODE"
   "$GLM_BIN" "${args[@]}" --prompt "$prompt"
 } >> "$LOG" 2>&1

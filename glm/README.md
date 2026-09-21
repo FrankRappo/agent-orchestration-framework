@@ -91,6 +91,11 @@ Max-Respawn: 3
 Max-Runtime-Seconds: 7200
 ```
 
+Autonomous headless tasks should use `Mode: yolo`. ZCode's `build` and `edit`
+modes expect an interactive permission client; the launcher maps them to
+`yolo` by default (`GLM_HEADLESS_AUTO_APPROVE=1`) so unattended workers do not
+stall on `No permission client configured`.
+
 Default policy:
 
 | Complexity | Model |

@@ -34,6 +34,10 @@ The default provider is the personal Coding Plan
 The interactive TUI is not required. Workers use the supported headless
 `--prompt` surface and create their evidence in report files.
 
+Headless coding uses `yolo` permission mode. Interactive `build`/`edit` modes
+require a permission client; the launcher maps them to `yolo` unless
+`GLM_HEADLESS_AUTO_APPROVE=0` is explicitly set.
+
 ## Project layout
 
 ```text

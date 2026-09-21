@@ -35,7 +35,7 @@ cat > "$controller_task.tmp" <<EOF
 
 Complexity: high
 Model: $MODEL_ID
-Mode: build
+Mode: yolo
 
 ## Goal
 
@@ -57,7 +57,7 @@ mv "$controller_task.tmp" "$controller_task"
 
 env TASK=CONTROLLER_PLAN PROJECT_DIR="$PROJECT_DIR" TASK_FILE="$controller_task" \
   REPORT="$controller_report" LOG="$LOG_DIR/glm_controller.log" STATE_DIR="$STATE_DIR" \
-  PROVIDER_ID="$PROVIDER_ID" MODEL_ID="$MODEL_ID" MODE=build CONTROLLER=glm \
+  PROVIDER_ID="$PROVIDER_ID" MODEL_ID="$MODEL_ID" MODE=yolo CONTROLLER=glm \
   MAX_RESPAWN="${CONTROLLER_MAX_RESPAWN:-1}" MAX_RUNTIME_SECONDS="${CONTROLLER_MAX_RUNTIME_SECONDS:-3600}" \
   POLL="${POLL:-10}" GLM_BIN="$GLM_BIN" bash "$SUPERVISOR"
 

@@ -2,7 +2,7 @@
 
 Complexity: medium
 Model: auto
-Mode: build
+Mode: yolo
 Resource-Lock: none
 No-Respawn: false
 Max-Respawn: 3

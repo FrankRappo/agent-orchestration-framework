@@ -58,7 +58,7 @@ def resolve(task: Path, policy_path: Path) -> dict[str, object]:
     if model.lower() not in allowed:
         raise SystemExit(f"unsupported model in {task}: {model}")
     model = allowed[model.lower()]
-    mode = values.get("mode", "build").lower()
+    mode = values.get("mode", "yolo").lower()
     if mode not in {"build", "edit", "plan", "yolo"}:
         raise SystemExit(f"unsupported mode in {task}: {mode}")
     provider = values.get("provider", str(policy["provider_id"]))
