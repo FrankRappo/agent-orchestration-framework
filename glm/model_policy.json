@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "default_complexity": "medium",
+  "provider_id": "account:zai-start-plan",
+  "complexity_models": {
+    "low": "GLM-5.3-Flash",
+    "medium": "GLM-5.3",
+    "high": "GLM-5.3",
+    "critical": "GLM-5.3"
+  },
+  "allowed_models": [
+    "GLM-5.3",
+    "GLM-5.3-Flash"
+  ]
+}

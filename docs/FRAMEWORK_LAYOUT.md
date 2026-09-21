@@ -11,6 +11,8 @@
 | Каталог | Что внутри |
 |---|---|
 | `docs/` | ВСЯ документация фреймворка: `HOW_TO_RUN.md` (главный runbook), `HOW_TO_LAUNCH_AGENTS.md`, `HOW_TO_PUPPETEER.md`, `SEQUENTIAL_ORCHESTRATORS.md`, `GOTCHAS.md`, `STEER_AGENT.md`, `README.repl.md`, `RAM_GUARD.md`, `SANDBOX.md`, `EFFORT_LEVEL.md` (уровень размышлений: где стоит, как менять на лету, две ловушки переключателя), и этот файл |
+| `common/` | Общий entrypoint `orchestrate`, нормализованный монитор квот ZCode/Codex и quota watcher |
+| `glm/` | Headless GLM-контролёр и GLM-исполнители: task policy, launcher, supervisor, динамическая очередь, runtime doctor |
 | `claude/` | Шаблоны и рабочие скрипты агентов Claude: оркестратор, супервизор (с RAM-гейтом на respawn), launcher, keeper очереди, watchdog'и, очереди волн, ожидатели, RAM-сторож v3 + его conf/логи |
 | `codex/` | То же для агентов Codex (свой оркестратор/супервизор/launcher, автопилот OMX) |
 | `memory/` | Память оркестратора — ЗЕРКАЛО `/root/.claude/projects/-root/memory/`. Индекс: `memory/MEMORY.md`. Источник истины — оригинал в `/root/...`, эта копия для того, чтобы память жила во фреймворке и попадала в git |

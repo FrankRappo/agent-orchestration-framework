@@ -1,7 +1,7 @@
 # Agent Orchestration Framework
 
 A complete, battle-tested Bash framework for running **long, unattended waves of AI coding
-agents** (Claude Code and Codex) on a single Linux/WSL box — orchestrators, supervisors,
+agents** (GLM/ZCode, Claude Code, and Codex) on a single Linux/WSL box — orchestrators, supervisors,
 watchdogs, sequential queues, waiters, and a RAM guard that keeps a 6 GiB machine from
 OOM-ing itself.
 
@@ -15,6 +15,8 @@ happy path.
 
 | Directory | Contents |
 |---|---|
+| `common/` | Unified controller entrypoint plus normalized ZCode/Codex quota monitoring and admission control |
+| `glm/` | Headless GLM controller/workers, per-task model routing, supervisor, runtime doctor |
 | `claude/` | Templates for Claude Code agents: orchestrator, supervisor, agent launcher, watchdogs, wave launcher/supervisor, sequential-queue handoffs, condition/slot waiters, RAM guard v3 |
 | `codex/` | The same three-level model for Codex agents, plus the OMX autopilot |
 | `docs/` | The runbooks. `HOW_TO_RUN.md` is the main one; `FRAMEWORK_LAYOUT.md` is the index; `SEQUENTIAL_ORCHESTRATORS.md`, `RAM_GUARD.md`, `GOTCHAS.md`, `STEER_AGENT.md`, `SANDBOX.md`, `HOW_TO_PUPPETEER.md`, `HOW_TO_LAUNCH_AGENTS.md`, `README.repl.md` cover the rest |
