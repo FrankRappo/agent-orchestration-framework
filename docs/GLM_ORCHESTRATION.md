@@ -75,23 +75,39 @@ orchestration from corrupting shared state.
 
 `common/quota_monitor.py` normalizes local provider evidence:
 
-- ZCode plan/token buckets and official MCP usage from desktop logs;
+- authenticated ZCode Max 5-hour/weekly credit windows and reset times;
+- official ZCode MCP quota plus Start Plan/promo buckets when present;
 - Codex rate-limit snapshots from local session JSONL;
 - 5-hour, daily, weekly, monthly, and provider-specific windows.
 
-It does not read credential files.
+`common/zcode_coding_plan_quota.mjs` reads the current Linux user's encrypted
+ZCode credential store, decrypts only in memory using ZCode's own local scheme,
+and sends credentials only to the official Z.ai/ZCode quota endpoints. Tokens
+and keys are never printed or persisted by the monitor.
 
 ```bash
 bash /work/settings/common/orchestrate.template.sh limits
 bash /work/settings/common/orchestrate.template.sh limits --json
+bash /work/settings/common/orchestrate.template.sh usage --project /work/myproject
 ```
 
 `quota-policy=warn` allows work when the snapshot is unknown or stale but still
 defers a model whose known buckets have reached the reserve. `enforce` also
 blocks unknown/stale snapshots. The default reserve is 15 percent.
 
+For a Coding Plan task, admission evaluates both the 5-hour and weekly windows;
+either window crossing the reserve threshold defers the task. Current server
+data also exposes an independent daily built-in ZCode MCP pool. If the provider
+returns a monthly MCP window, it is normalized by reset interval.
+
 The watcher persists `/work/glm/limits/latest.json` every five minutes and can
 call `NOTIFY_CMD` when status crosses 70, 85, or 95 percent.
+
+Every completed headless turn appends its provider-reported token counters to
+`logs/glm_usage.jsonl` under an exclusive file lock. `orchestrate usage` reports
+requests, input/output/cache/reasoning/total tokens overall and per model. For
+older runs created before the ledger existed, it falls back to parsing their
+stored JSON response logs.
 
 ## Failure handling
 

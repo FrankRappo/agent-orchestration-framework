@@ -19,6 +19,7 @@ Usage:
   orchestrate attach --project DIR
   orchestrate stop --project DIR
   orchestrate limits [--json]
+  orchestrate usage --project DIR [--json]
   orchestrate doctor [--live]
 
 controller=glm   GLM decomposes --goal when tasks/ is empty, then controls the queue.
@@ -76,6 +77,12 @@ case "$command_name" in
   limits)
     [[ "$AS_JSON" -eq 1 ]] && exec python3 "$QUOTA_MONITOR" --json
     exec python3 "$QUOTA_MONITOR"
+    ;;
+  usage)
+    require_project
+    report="$COMMON_ROOT/glm_usage_report.py"
+    [[ "$AS_JSON" -eq 1 ]] && exec python3 "$report" "$PROJECT_DIR/logs/glm_usage.jsonl" --logs-dir "$PROJECT_DIR/logs" --json
+    exec python3 "$report" "$PROJECT_DIR/logs/glm_usage.jsonl" --logs-dir "$PROJECT_DIR/logs"
     ;;
   start)
     require_project

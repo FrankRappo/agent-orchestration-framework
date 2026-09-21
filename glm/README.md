@@ -24,6 +24,7 @@ Use the common entrypoint rather than calling these scripts directly:
 ```bash
 bash /work/settings/common/orchestrate.template.sh doctor --live
 bash /work/settings/common/orchestrate.template.sh limits
+bash /work/settings/common/orchestrate.template.sh usage --project /work/myproject
 ```
 
 If the live doctor asks for authentication, complete the standalone CLI OAuth
@@ -40,7 +41,9 @@ should set `GLM_PATH_STYLE=windows`.
 
 The default provider is `account:zai-individual-coding-plan`, which uses the
 connected personal Lite/Pro/Max plan. The orchestrator never reads or copies the
-credential file.
+credential file into task prompts or logs. The quota helper decrypts credentials
+only in memory to query the official quota endpoints and emits normalized usage
+without secrets.
 
 ## GLM controls the run
 

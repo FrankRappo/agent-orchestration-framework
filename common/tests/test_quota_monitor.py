@@ -37,6 +37,15 @@ class QuotaMonitorTests(unittest.TestCase):
         decision = quota.admission(buckets, "zcode", "GLM-5.3-Flash", 15, 10**9)
         self.assertEqual("allow", decision["decision"])
 
+    def test_any_exhausted_coding_plan_window_denies(self):
+        now = int(quota.time.time())
+        buckets = [
+            {"provider": "zcode", "kind": "coding_plan", "model": None, "used_percent": 90, "observed_at": now},
+            {"provider": "zcode", "kind": "coding_plan", "model": None, "used_percent": 10, "observed_at": now},
+        ]
+        decision = quota.admission(buckets, "zcode", "GLM-5.3", 15, 10**9)
+        self.assertEqual("deny", decision["decision"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -19,7 +19,7 @@ case " ${*:-} " in
   *' --version '*) echo '0.test'; exit 0 ;;
   *' doctor '*) echo '{"cli":{"name":"fake"}}'; exit 0 ;;
 esac
-printf '{"result":"fake worker completed","model":"%s"}\n' "${GLM_TASK_MODEL:-unknown}"
+printf '{"result":"fake worker completed","model":"%s","usage":{"modelRequestCount":1,"inputTokens":100,"outputTokens":10,"totalTokens":110,"cacheReadTokens":80,"cacheWriteTokens":0,"reasoningTokens":2,"webFetchRequests":0,"webSearchRequests":0}}\n' "${GLM_TASK_MODEL:-unknown}"
 if [[ "${GLM_TASK_ID:-}" == CONTROLLER_PLAN ]]; then
   mkdir -p "$GLM_TASK_PROJECT/tasks"
   cat > "$GLM_TASK_PROJECT/tasks/T01_generated.md" <<'EOF'
@@ -84,6 +84,9 @@ grep -q '^STATUS: SUCCESS$' "$project/reports/report_T01.md"
 grep -q 'model=GLM-5.3-Flash' "$project/reports/report_T01.md"
 [[ -f "$project/reports/ALL_DONE" ]]
 grep -q 'ALL DONE' "$project/logs/glm_orchestrator.log"
+grep -q '"total_tokens":110' "$project/logs/glm_usage.jsonl"
+python3 "$ROOT/../common/glm_usage_report.py" "$project/logs/glm_usage.jsonl" --json \
+  | grep -q '"total_tokens": 110'
 
 # Unified dispatcher: Codex owns task authoring while GLM is the executor.
 project2="$WORK/project-dispatch"

@@ -14,6 +14,8 @@ import glob
 import json
 import os
 from pathlib import Path
+import shutil
+import subprocess
 import sys
 import time
 from typing import Any, Iterable
@@ -102,6 +104,55 @@ def default_zcode_patterns() -> list[str]:
         "/mnt/c/Users/*/.zcode/v2/logs/*.log",
         os.path.expanduser("~/.zcode/v2/logs/*.log"),
     ]
+
+
+def discover_zcode_home(explicit: str | None) -> Path | None:
+    if explicit:
+        home = Path(explicit).expanduser()
+        return home if (home / ".zcode" / "v2" / "credentials.json").is_file() else None
+    current = Path.home()
+    if (current / ".zcode" / "v2" / "credentials.json").is_file():
+        return current
+    candidates = sorted(
+        Path("/home").glob("*/.zcode/v2/credentials.json"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    return candidates[0].parents[2] if candidates else None
+
+
+def parse_zcode_live(helper: Path, home: Path | None) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str | None]:
+    node = shutil.which("node")
+    if not node or home is None or not helper.is_file():
+        return [], [], "live_zcode_unavailable"
+    command = [
+        node,
+        str(helper),
+        "--home",
+        str(home),
+        "--username",
+        home.name,
+        "--platform",
+        "linux",
+    ]
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=25, check=False)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return [], [], f"live_zcode_failed:{type(error).__name__}"
+    if result.returncode != 0:
+        message = result.stderr.strip().splitlines()[-1] if result.stderr.strip() else f"rc={result.returncode}"
+        return [], [], f"live_zcode_failed:{message[:240]}"
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return [], [], "live_zcode_invalid_json"
+    buckets = payload.get("buckets", []) if isinstance(payload, dict) else []
+    plans = payload.get("plans", []) if isinstance(payload, dict) else []
+    return (
+        [item for item in buckets if isinstance(item, dict)],
+        [item for item in plans if isinstance(item, dict)],
+        None,
+    )
 
 
 def parse_zcode(paths: list[Path]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -293,8 +344,12 @@ def admission(
     now = int(time.time())
     selected = [b for b in buckets if b.get("provider") == provider]
     if provider == "zcode" and model:
-        wanted = normalize_model(model)
-        selected = [b for b in selected if normalize_model(b.get("model")) == wanted]
+        coding_plan = [b for b in selected if b.get("kind") == "coding_plan"]
+        if coding_plan:
+            selected = coding_plan
+        else:
+            wanted = normalize_model(model)
+            selected = [b for b in selected if normalize_model(b.get("model")) == wanted]
     elif provider == "codex":
         selected = [b for b in selected if b.get("kind") == "rate_limit"]
 
@@ -314,8 +369,9 @@ def admission(
     # ZCode may expose multiple entitlement buckets for the same model. One
     # usable bucket is enough; Codex windows are cumulative gates, so every
     # reported window must remain below the reserve cutoff.
-    denied = selected if provider == "zcode" and len(over_cutoff) == len(selected) else over_cutoff
-    if provider == "zcode" and len(over_cutoff) < len(selected):
+    is_coding_plan = provider == "zcode" and all(b.get("kind") == "coding_plan" for b in selected)
+    denied = selected if provider == "zcode" and not is_coding_plan and len(over_cutoff) == len(selected) else over_cutoff
+    if provider == "zcode" and not is_coding_plan and len(over_cutoff) < len(selected):
         denied = []
     return {
         "decision": "deny" if denied else "allow",
@@ -357,6 +413,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--provider", choices=("all", "zcode", "codex"), default="all")
     parser.add_argument("--zcode-log", action="append", default=[])
+    parser.add_argument("--zcode-home", default=os.environ.get("ZCODE_LIVE_HOME"))
+    parser.add_argument("--zcode-helper", default=str(Path(__file__).with_name("zcode_coding_plan_quota.mjs")))
+    parser.add_argument("--no-live-zcode", action="store_true")
     parser.add_argument("--codex-home", default=os.environ.get("CODEX_HOME", "~/.codex"))
     parser.add_argument("--json", action="store_true", dest="as_json")
     parser.add_argument("--admit-provider", choices=("zcode", "codex"))
@@ -371,10 +430,26 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     buckets: list[dict[str, Any]] = []
     plans: list[dict[str, Any]] = []
+    errors: list[str] = []
     if args.provider in ("all", "zcode"):
         zcode_paths = newest_files(args.zcode_log or default_zcode_patterns())
         zcode_buckets, plans = parse_zcode(zcode_paths)
         buckets.extend(zcode_buckets)
+        if not args.no_live_zcode:
+            live_buckets, live_plans, live_error = parse_zcode_live(
+                Path(args.zcode_helper), discover_zcode_home(args.zcode_home)
+            )
+            if live_buckets:
+                buckets = [
+                    item for item in buckets
+                    if not (item.get("provider") == "zcode" and item.get("kind") == "mcp")
+                ]
+                buckets.extend(live_buckets)
+            if live_plans:
+                plans = [item for item in plans if not item.get("level")]
+                plans.extend(live_plans)
+            if live_error:
+                errors.append(live_error)
     if args.provider in ("all", "codex"):
         codex_paths = newest_files(default_codex_patterns(args.codex_home))
         buckets.extend(parse_codex(codex_paths))
@@ -384,6 +459,7 @@ def main(argv: list[str] | None = None) -> int:
         "generated_at": int(time.time()),
         "buckets": sorted(buckets, key=lambda b: (str(b.get("provider")), str(b.get("name")))),
         "plans": plans,
+        "errors": errors,
     }
     exit_code = 0
     if args.admit_provider:
