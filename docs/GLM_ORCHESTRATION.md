@@ -14,9 +14,10 @@ remain a historical backend and a source of reliability lessons only.
 
 ## First-time preparation
 
-1. Make the Windows or Linux GLM CLI available as `glm`, or set `GLM_BIN`.
-2. Authenticate the standalone CLI. A desktop ZCode login does not necessarily
-   authenticate standalone headless calls.
+1. Install the official Linux ZCode `.deb` and expose its bundled CLI through
+   `glm/glm-linux-wrapper.template.sh` as `glm`, or set `GLM_BIN`.
+2. Run it as a regular Linux user and authenticate the standalone CLI. A
+   Windows desktop login does not authenticate the WSL user profile.
 3. Run the live doctor:
 
 ```bash

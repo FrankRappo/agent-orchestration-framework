@@ -106,7 +106,8 @@ case "$command_name" in
     tmux new-session -d -s "$session" -c "$PROJECT_DIR" \
       -e "PROJECT_DIR=$PROJECT_DIR" -e "CONTROLLER=$CONTROLLER" -e "TASK_AUTHOR=$author" \
       -e "GOAL_FILE=$GOAL_FILE" -e "MAX_PARALLEL=$MAX_PARALLEL" -e "IDLE_EXIT=$IDLE_EXIT" \
-      -e "QUOTA_POLICY=$QUOTA_POLICY" -e "GLM_BIN=${GLM_BIN:-glm}" -e "POLL=${POLL:-10}" \
+      -e "QUOTA_POLICY=$QUOTA_POLICY" -e "GLM_BIN=${GLM_BIN:-glm}" \
+      -e "GLM_PATH_STYLE=${GLM_PATH_STYLE:-native}" -e "POLL=${POLL:-10}" \
       bash "$runner"
     python3 - "$PROJECT_DIR/orch/launch.json" "$session" "$CONTROLLER" "$author" <<'PY'
 import json, os, sys, time

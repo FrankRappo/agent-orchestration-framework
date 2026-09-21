@@ -4,6 +4,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GLM_BIN="${GLM_BIN:-glm}"
+GLM_PATH_STYLE="${GLM_PATH_STYLE:-native}"
 LIVE=0
 [[ "${1:-}" == --live ]] && LIVE=1
 
@@ -28,6 +29,7 @@ echo "Static framework checks: OK"
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
+chmod 0755 "$tmp"
 config="$tmp/provider.json"
 provider="${GLM_PROVIDER_ID:-account:zai-individual-coding-plan}"
 model="${GLM_DOCTOR_MODEL:-GLM-5.3-Flash}"
@@ -38,8 +40,11 @@ json.dump({"schemaVersion":1,"config":{"providerConfigRules":{"providerRules":[]
 "defaultModelSelection":{"providerId":sys.argv[2],"modelId":sys.argv[3]}}},
 open(sys.argv[1],"w",encoding="utf-8"),indent=2)
 PY
+chmod 0644 "$config"
 runtime_config="$config"
-command -v wslpath >/dev/null 2>&1 && runtime_config="$(wslpath -w "$config")"
+if [[ "$GLM_PATH_STYLE" == windows ]] && command -v wslpath >/dev/null 2>&1; then
+  runtime_config="$(wslpath -w "$config")"
+fi
 export ZCODE_PERSONAL_PROVIDER_CONFIG_FILE="$runtime_config"
 case ":${WSLENV:-}:" in
   *:ZCODE_PERSONAL_PROVIDER_CONFIG_FILE:*) ;;

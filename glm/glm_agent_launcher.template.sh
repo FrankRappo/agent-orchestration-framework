@@ -13,6 +13,7 @@ MODEL_ID="${MODEL_ID:?need MODEL_ID}"
 MODE="${MODE:-build}"
 CONTROLLER="${CONTROLLER:-manual}"
 GLM_BIN="${GLM_BIN:-glm}"
+GLM_PATH_STYLE="${GLM_PATH_STYLE:-native}"
 GLM_DISALLOWED_TOOLS="${GLM_DISALLOWED_TOOLS:-}"
 
 mkdir -p "$STATE_DIR" "$(dirname "$REPORT")" "$(dirname "$LOG")"
@@ -63,7 +64,7 @@ os.replace(path + ".tmp", path)
 PY
 
 provider_runtime_path="$PROVIDER_CONFIG"
-if command -v wslpath >/dev/null 2>&1 && [[ "$GLM_BIN" == "glm" || "$GLM_BIN" == */glm ]]; then
+if [[ "$GLM_PATH_STYLE" == windows ]] && command -v wslpath >/dev/null 2>&1; then
   provider_runtime_path="$(wslpath -w "$PROVIDER_CONFIG")"
 fi
 export ZCODE_PERSONAL_PROVIDER_CONFIG_FILE="$provider_runtime_path"

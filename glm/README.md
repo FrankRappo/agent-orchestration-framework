@@ -6,6 +6,8 @@ recorded and protected by one controller lock.
 
 ## Components
 
+- `glm-linux-wrapper.template.sh` — native Linux CLI wrapper for the official
+  ZCode `.deb`; root launches are dropped to the configured regular user.
 - `glm_controller.template.sh` — asks GLM to decompose one goal into `T*.md`
   task files, then starts the queue.
 - `glm_orchestrator.template.sh` — dynamic task discovery, bounded parallelism,
@@ -30,6 +32,11 @@ once. Desktop login and CLI login can be separate:
 ```bash
 glm login
 ```
+
+Run the Linux CLI as a regular user so OAuth and plugin state live under that
+user's `~/.zcode`. For a native Linux/WSL installation use
+`GLM_PATH_STYLE=native` (the default). Only Windows-interoperability wrappers
+should set `GLM_PATH_STYLE=windows`.
 
 The default provider is `account:zai-individual-coding-plan`, which uses the
 connected personal Lite/Pro/Max plan. The orchestrator never reads or copies the
