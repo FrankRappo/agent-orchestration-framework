@@ -31,7 +31,9 @@ once. Desktop login and CLI login can be separate:
 glm login
 ```
 
-The orchestrator never reads or copies the credential file.
+The default provider is `account:zai-individual-coding-plan`, which uses the
+connected personal Lite/Pro/Max plan. The orchestrator never reads or copies the
+credential file.
 
 ## GLM controls the run
 

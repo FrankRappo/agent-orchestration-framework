@@ -209,6 +209,19 @@ def parse_zcode(paths: list[Path]) -> tuple[list[dict[str, Any]], list[dict[str,
                     "resets_at": data.get("next_refresh_at"),
                     "observed_at": observed,
                     "source": source,
+                    "plan_level": data.get("level"),
+                }
+            )
+        if data.get("level"):
+            plans.append(
+                {
+                    "provider": "zcode",
+                    "plan_id": "coding-plan",
+                    "name": f"Coding Plan {str(data['level']).upper()}",
+                    "status": "active",
+                    "level": data.get("level"),
+                    "observed_at": observed,
+                    "source": source,
                 }
             )
     return buckets, plans
@@ -316,6 +329,9 @@ def admission(
 
 def human(snapshot: dict[str, Any]) -> str:
     lines = [f"quota snapshot generated_at={snapshot['generated_at']}"]
+    for plan in snapshot.get("plans", []):
+        if plan.get("level"):
+            lines.append(f"  {plan.get('provider', '?'):<6} active plan level={str(plan['level']).upper()}")
     if not snapshot["buckets"]:
         lines.append("  no usage buckets found")
     for bucket in snapshot["buckets"]:

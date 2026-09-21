@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "default_complexity": "medium",
-  "provider_id": "account:zai-start-plan",
+  "provider_id": "account:zai-individual-coding-plan",
   "complexity_models": {
     "low": "GLM-5.3-Flash",
     "medium": "GLM-5.3",

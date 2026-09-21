@@ -61,6 +61,7 @@ EOF
 metadata="$(python3 "$ROOT/task_metadata.py" --policy "$ROOT/model_policy.json" "$project/tasks/T01_low.md")"
 IFS=$'\t' read -r complexity provider model mode resource no_respawn max_respawn max_runtime <<< "$metadata"
 [[ "$complexity" == low ]]
+[[ "$provider" == account:zai-individual-coding-plan ]]
 [[ "$model" == GLM-5.3-Flash ]]
 [[ "$mode" == build ]]
 

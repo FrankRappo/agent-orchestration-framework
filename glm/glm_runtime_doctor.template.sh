@@ -29,11 +29,13 @@ echo "Static framework checks: OK"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 config="$tmp/provider.json"
-python3 - "$config" <<'PY'
+provider="${GLM_PROVIDER_ID:-account:zai-individual-coding-plan}"
+model="${GLM_DOCTOR_MODEL:-GLM-5.3-Flash}"
+python3 - "$config" "$provider" "$model" <<'PY'
 import json, sys
 json.dump({"schemaVersion":1,"config":{"providerConfigRules":{"providerRules":[]},
 "modelConfigRules":{"providerModelRules":[],"manualProviderModelRules":[]},
-"defaultModelSelection":{"providerId":"account:zai-start-plan","modelId":"GLM-5.3-Flash"}}},
+"defaultModelSelection":{"providerId":sys.argv[2],"modelId":sys.argv[3]}}},
 open(sys.argv[1],"w",encoding="utf-8"),indent=2)
 PY
 runtime_config="$config"

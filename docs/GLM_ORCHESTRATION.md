@@ -26,6 +26,10 @@ bash /work/settings/common/orchestrate.template.sh doctor --live
 The live doctor sends one no-tools prompt. It must print `Live model call: OK`.
 Do not start a real queue before this gate passes.
 
+The default provider is the personal Coding Plan
+`account:zai-individual-coding-plan` (Lite/Pro/Max), not the temporary
+`account:zai-start-plan` trial provider.
+
 The interactive TUI is not required. Workers use the supported headless
 `--prompt` surface and create their evidence in report files.
 
