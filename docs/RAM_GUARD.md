@@ -3,7 +3,7 @@
 Файлы:
 - `/work/settings/claude/ram_guard_v3.sh` — сам сторож (демон + утилиты диагностики)
 - `/work/settings/claude/ram_guard_v3_start.sh` — идемпотентный старт (cron / profile.d / wsl.conf)
-- `/work/settings/claude/ram_guard_v3.conf` — пороги, читаются на каждом тике (правка без рестарта)
+- `/work/settings/claude/ram_guard_v3.conf` — пороги, читаются при старте демона
 - `/work/settings/claude/ram_guard_protect_pids` — PID, которые не трогать ни при каких условиях
 - `/work/settings/claude/ram_guard_v3.log` — что делал сторож
 - `/work/settings/claude/ram_guard_top.log` — снапшоты топ-потребителей (посмертная улика)
@@ -50,10 +50,10 @@ WSL** (`ext4.vhdx`). Файл растёт и обратно место не о�
 
 | состояние | порог | действие |
 |---|---|---|
-| SOFT  | < 1400 Mi | заморозка (`SIGSTOP`) деревьев codex/omx + снапшоты топа каждые 30 с |
+| SOFT  | < 1400 Mi | пауза codex/omx + снапшоты топа каждые 30 с; у интерактивных TTY корень process group остаётся живым, замораживаются только потомки |
 | CRIT  | < 800 Mi  | плюс пауза batch-агентов claude (любой пользователь, любой cwd), не дольше 180 с; ставится флаг `/tmp/ram_paused`, который читают супервизоры |
 | EMERG | < 450 Mi  | реальный `kill -9` ОДНОГО дерева за тик по приоритету: codex -> chrome -> claude_batch -> other -> интерактивная claude-сессия |
-| OK    | > 1800 Mi | снятие всех пауз (гистерезис) |
+| OK    | > 1800 Mi | проверяемое снятие всех пауз (гистерезис); ledger удаляется только после фактического выхода процессов из `T` |
 
 Дополнительно: если `/proc/pressure/memory` `some avg10` выше 25 (реальный thrash), состояние
 считается на ступень хуже — свопящаяся VM успевает замёрзнуть раньше, чем avail дойдёт до порога.
@@ -72,7 +72,8 @@ bash /work/settings/claude/ram_guard_v3.sh status   # жив ли демон, п
 bash /work/settings/claude/ram_guard_v3.sh top      # только топ деревьев по RSS (в лог + на экран)
 bash /work/settings/claude/ram_guard_v3.sh dry      # кого сторож убил бы в аварии — БЕЗ сигналов
 bash /work/settings/claude/ram_guard_v3_start.sh    # поднять, если не жив (идемпотентно)
-bash /work/settings/claude/ram_guard_v3.sh stop     # остановить демон
+sudo bash /work/settings/claude/ram_guard_v3.sh resume  # вручную снять все созданные сторожем паузы
+sudo bash /work/settings/claude/ram_guard_v3.sh stop    # снять паузы и остановить демон
 
 tail -f /work/settings/claude/ram_guard_v3.log      # действия сторожа
 tail -30 /work/settings/claude/ram_guard_top.log    # кто ел память (в т.ч. перед фризом)
@@ -100,6 +101,8 @@ pgrep -x cron >/dev/null && echo cron ok
 ## 5. Что делать после срабатывания
 
 - `ram_guard_top.log` показывает, какое дерево росло перед аварией — начинать с него.
+- Если процесс остался в `T`, выполнить `sudo bash /work/settings/claude/ram_guard_v3.sh resume`:
+  сторож сохранит в ledger только те PID, которые действительно не удалось разморозить.
 - Если сторож убил Chrome или codex, это ожидаемо: они первые в очереди жертв.
 - Если в логе снова появится «кандидатов выше порога нет» — значит память ушла в класс,
   который считается защищённым; смотреть снапшот топа и расширять классификацию.

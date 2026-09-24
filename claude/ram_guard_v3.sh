@@ -30,13 +30,14 @@
 #   ram_guard_v3.sh once     — один тик (для отладки)
 #   ram_guard_v3.sh status   — состояние сторожа + топ потребителей
 #   ram_guard_v3.sh top      — только топ потребителей
-#   ram_guard_v3.sh stop     — остановить демон
+#   ram_guard_v3.sh resume   — снять все паузы, созданные сторожем
+#   ram_guard_v3.sh stop     — снять паузы и остановить демон
 #
 # Документация: /work/settings/docs/RAM_GUARD.md
 # ============================================================================
 set -u
 
-CONF=/work/settings/claude/ram_guard_v3.conf
+CONF=${CONF:-/work/settings/claude/ram_guard_v3.conf}
 [ -r "$CONF" ] && . "$CONF"
 
 # ---------- пороги (KB MemAvailable) ----------
@@ -58,7 +59,7 @@ MAXLOG=${MAXLOG:-5242880}
 STATE=${STATE:-/run/ram_guard_v3}
 PIDFILE=$STATE/daemon.pid
 PROTECT_FILE=${PROTECT_FILE:-/work/settings/claude/ram_guard_protect_pids}
-COMPAT_FLAG=/tmp/ram_paused          # его читают супервизоры (HOW_TO_RUN 8.9.1) — сохраняем
+COMPAT_FLAG=${COMPAT_FLAG:-/tmp/ram_paused} # его читают супервизоры (HOW_TO_RUN 8.9.1) — сохраняем
 TG=${TG:-/work/tg/bot.py}
 
 # процессы, которые НЕ трогаем никогда (ни STOP, ни KILL)
@@ -68,9 +69,33 @@ mkdir -p "$STATE" 2>/dev/null
 
 now(){ date +%s; }
 stamp(){ date '+%F %T'; }
+ensure_state(){ mkdir -p "$STATE" 2>/dev/null; }
 rotate(){ local f=$1; [ -f "$f" ] || return 0; local s; s=$(stat -c%s "$f" 2>/dev/null||echo 0); [ "$s" -gt "$MAXLOG" ] && mv -f "$f" "$f.1"; }
 say(){ rotate "$LOG"; echo "[$(stamp)] $*" >> "$LOG"; }
 toplog(){ rotate "$TOPLOG"; echo "$*" >> "$TOPLOG"; }
+
+pid_start(){ # устойчивый идентификатор PID: поле starttime из /proc/<pid>/stat
+  local stat
+  [ -r "/proc/$1/stat" ] || return 1
+  stat=$(cat "/proc/$1/stat" 2>/dev/null) || return 1
+  stat=${stat##*) }
+  set -- $stat
+  [ "$#" -ge 20 ] || return 1
+  echo "${20}"
+}
+
+pid_comm(){ [ -r "/proc/$1/comm" ] && tr -d '\n' < "/proc/$1/comm"; }
+pid_state(){ ps -o state= -p "$1" 2>/dev/null | tr -d ' '; }
+
+daemon_pid(){
+  local pid args
+  [ -r "$PIDFILE" ] || return 1
+  read -r pid < "$PIDFILE"
+  case "${pid:-}" in ''|*[!0-9]*) return 1;; esac
+  [ -r "/proc/$pid/cmdline" ] || return 1
+  args=$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null) || return 1
+  case "$args" in *ram_guard_v3.sh\ loop*) echo "$pid";; *) return 1;; esac
+}
 
 tg(){ # tg <level> <text> — с рейт-лимитом по уровню
   local lvl=$1; shift
@@ -213,28 +238,91 @@ top_snapshot(){ # топ-8 деревьев по RSS в отдельный ло�
 }
 
 # ------------------------------------------------------------- пауза/резюм
+tree_members_postorder(){ # потомки раньше родителя: родитель не успеет породить новые процессы
+  local pid=$1 child
+  for child in ${P_KIDS[$pid]:-}; do tree_members_postorder "$child"; done
+  echo "$pid"
+}
+
 pause_tree(){ # pause_tree <pid> <class>
-  local pid=$1 cls=$2
-  local pg=${P_PGID[$pid]:-}
-  [ -n "$pg" ] && kill -STOP -- -"$pg" 2>/dev/null
-  kill -STOP "$pid" 2>/dev/null
-  echo "$pid ${P_COMM[$pid]:-?} $pg $(now)" >> "$STATE/paused_$cls"
+  local pid=$1 cls=$2 pg=${P_PGID[$1]:-} tty=${P_TTY[$1]:-?}
+  local target comm start mode=full stopped=0 f=$STATE/paused_$cls
+  ensure_state || return 1
+
+  # SIGSTOP всей foreground process group ломает job-control: shell забирает TTY,
+  # а после SIGCONT процесс тут же снова ловит SIGTTIN. Для интерактивного дерева
+  # оставляем корень/лидера группы живым и морозим только тяжёлых потомков.
+  [ "$tty" != "?" ] && mode=tty-safe
+  while read -r target; do
+    [ -z "${target:-}" ] && continue
+    if [ "$mode" = tty-safe ] && { [ "$target" = "$pid" ] || [ "$target" = "$pg" ]; }; then
+      continue
+    fi
+    comm=${P_COMM[$target]:-$(pid_comm "$target")}
+    start=$(pid_start "$target") || continue
+    if kill -STOP "$target" 2>/dev/null; then
+      if printf '%s|%s|%s|%s|%s\n' "$target" "$comm" "$start" "$pid" "$mode" >> "$f"; then
+        stopped=$((stopped+1))
+      else
+        kill -CONT "$target" 2>/dev/null
+      fi
+    fi
+  done < <(tree_members_postorder "$pid")
+
+  [ "$stopped" -gt 0 ]
 }
-resume_class(){ # resume_class <class>
-  local f=$STATE/paused_$1 pid comm pg ts
+
+resume_class(){ # resume_class <class>; ledger остаётся, пока процесс реально STOP
+  local cls=$1 f=$STATE/paused_$1 tmp=$STATE/paused_$1.pending.$$
+  local line pid comm start root mode cur_comm cur_start state resumed=0 pending=0
   [ -f "$f" ] || return 0
-  while read -r pid comm pg ts; do
-    [ -z "${pid:-}" ] && continue
-    # проверка личности: PID мог быть переиспользован
-    local cur; cur=$(ps -o comm= -p "$pid" 2>/dev/null | tr -d ' ')
-    [ -n "$cur" ] && [ "$cur" != "$comm" ] && continue
-    [ -n "${pg:-}" ] && kill -CONT -- -"$pg" 2>/dev/null
-    kill -CONT "$pid" 2>/dev/null
+  ensure_state || return 1
+  : > "$tmp" || return 1
+
+  while IFS= read -r line; do
+    [ -z "$line" ] && continue
+    if [[ "$line" = *'|'* ]]; then
+      IFS='|' read -r pid comm start root mode <<< "$line"
+      cur_comm=$(pid_comm "$pid")
+      [ -z "$cur_comm" ] && continue                 # процесс уже завершился
+      cur_start=$(pid_start "$pid") || continue
+      if [ "$cur_comm" != "$comm" ] || [ "$cur_start" != "$start" ]; then
+        say "CONT $cls: пропуск переиспользованного pid=$pid"
+        continue
+      fi
+      kill -CONT "$pid" 2>/dev/null || true
+    else
+      # Совместимость со старым ledger: pid comm pgid timestamp.
+      local pg ts
+      read -r pid comm pg ts <<< "$line"
+      cur_comm=$(pid_comm "$pid")
+      [ -z "$cur_comm" ] && continue
+      [ "$cur_comm" = "$comm" ] || continue
+      [ -n "${pg:-}" ] && kill -CONT -- -"$pg" 2>/dev/null || true
+      kill -CONT "$pid" 2>/dev/null || true
+    fi
+
+    state=$(pid_state "$pid")
+    if [[ "$state" = T* || "$state" = t* ]]; then
+      echo "$line" >> "$tmp"
+      pending=$((pending+1))
+    else
+      resumed=$((resumed+1))
+    fi
   done < "$f"
-  rm -f "$f"
-  say "CONT $1 (снял паузу)"
+
+  if [ "$pending" -gt 0 ]; then mv -f "$tmp" "$f"; else rm -f "$tmp" "$f"; fi
+  say "CONT $cls: resumed=$resumed pending=$pending"
+  [ "$pending" -eq 0 ]
 }
+
 paused(){ [ -s "$STATE/paused_$1" ]; }
+
+resume_all(){
+  resume_class codex || true
+  resume_class claude_batch || true
+  rm -f "$COMPAT_FLAG"
+}
 
 kill_tree(){ # kill_tree <pid> — сначала потомки, потом корень
   local pid=$1 k
@@ -276,6 +364,7 @@ psi10(){ awk '/^some/{split($2,a,"="); printf "%.0f", a[2]; exit}' /proc/pressur
 
 tick(){
   local avail swapfree psi state n
+  ensure_state || { say "ERROR: нельзя создать STATE=$STATE"; return 1; }
   avail=$(awk '/MemAvailable/{print $2}' /proc/meminfo)
   swapfree=$(awk '/SwapFree/{print $2}' /proc/meminfo)
   psi=$(psi10); [ -z "$psi" ] && psi=0
@@ -306,7 +395,7 @@ tick(){
       pause_tree "$pid" codex
     done < <(roots_of codex)
     if paused codex; then
-      say "STOP codex/omx ($(wc -l < "$STATE/paused_codex") дерев) — avail=$((avail/1024))Mi state=$state"
+      say "STOP codex/omx ($(wc -l < "$STATE/paused_codex") процессов) — avail=$((avail/1024))Mi state=$state"
     fi
   fi
 
@@ -320,7 +409,7 @@ tick(){
     done < <(roots_of claude_batch)
     if paused claude_batch; then
       date '+%F %T' > "$COMPAT_FLAG"   # супервизоры не считают тишину jsonl столлом
-      say "STOP claude batch-агентов ($(wc -l < "$STATE/paused_claude_batch")) — avail=$((avail/1024))Mi"
+      say "STOP claude batch-агентов ($(wc -l < "$STATE/paused_claude_batch")) процессов — avail=$((avail/1024))Mi"
       tg crit "RAM-сторож: avail=$((avail/1024))Mi — batch-агенты claude на паузе до ${MAX_PAUSE}с, codex заморожен."
     fi
   fi
@@ -348,17 +437,28 @@ tick(){
   fi
 }
 
-case "${1:-loop}" in
+loop_cleanup(){
+  local rc=$?
+  trap - EXIT TERM INT HUP
+  resume_all
+  rm -f "$PIDFILE"
+  say "демон остановлен rc=$rc; созданные паузы сняты"
+  exit "$rc"
+}
+
+main(){ case "${1:-loop}" in
   once) tick ;;
   loop)
+    ensure_state || { echo "не удалось создать $STATE" >&2; return 1; }
     echo $$ > "$PIDFILE"
     say "старт демона pid=$$ (SOFT=$((SOFT_KB/1024))Mi CRIT=$((CRIT_KB/1024))Mi EMERG=$((EMERG_KB/1024))Mi RESUME=$((RESUME_KB/1024))Mi interval=${INTERVAL}s)"
-    trap 'say "демон остановлен (signal)"; rm -f "$PIDFILE"; exit 0' TERM INT
+    trap loop_cleanup EXIT TERM INT HUP
     while true; do tick; sleep "$INTERVAL"; done
     ;;
   status)
-    if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
-      echo "демон: ЖИВ pid=$(cat "$PIDFILE")"
+    local running
+    if running=$(daemon_pid); then
+      echo "демон: ЖИВ pid=$running"
     else
       echo "демон: НЕ ЗАПУЩЕН (поднять: bash /work/settings/claude/ram_guard_v3_start.sh)"
     fi
@@ -391,8 +491,20 @@ case "${1:-loop}" in
       fi
     done
     ;;
-  stop)
-    [ -f "$PIDFILE" ] && kill -TERM "$(cat "$PIDFILE")" 2>/dev/null && echo "остановлен" || echo "не запущен"
+  resume)
+    resume_all
+    for c in codex claude_batch; do paused "$c" && echo "не удалось разморозить: $c -> $(cat "$STATE/paused_$c")"; done
     ;;
-  *) echo "usage: $0 [loop|once|status|top|dry|stop]"; exit 2 ;;
-esac
+  stop)
+    local running
+    if running=$(daemon_pid); then
+      kill -TERM "$running" 2>/dev/null && echo "остановлен; паузы будут сняты" || { echo "нет прав остановить pid=$running" >&2; return 1; }
+    else
+      resume_all
+      echo "не запущен; оставшиеся паузы сняты"
+    fi
+    ;;
+  *) echo "usage: $0 [loop|once|status|top|dry|resume|stop]"; return 2 ;;
+esac; }
+
+[ "${RAM_GUARD_LIB_ONLY:-0}" = 1 ] || main "$@"
